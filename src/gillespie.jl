@@ -47,6 +47,9 @@ function gillespie(S::Integer, # susceptible host population size
 
         infect_S = β * S * I # I_i infect S
         infect_R = β * I * transpose(R) # I_i infect R_j
+        for i in 1:size(infect_R, 1)
+            infect_R[i, i] = 0
+        end
         recovery = r * I
         immuneloss = μ * R
 
@@ -103,20 +106,18 @@ function gillespie(S::Integer, # susceptible host population size
             record!(dynamics_v, t, (copy(I), copy(v)))
         elseif r_idx == 7 # I_i infect R_j
             i, j = idx
-            if i != j
-                n = I[i] += 1
-                record!(dynamics_I_current[i], t, n)
-                record!(dynamics_v, t, (copy(I), copy(v)))
+            n = I[i] += 1
+            record!(dynamics_I_current[i], t, n)
+            record!(dynamics_v, t, (copy(I), copy(v)))
 
-                n = R[j] -= 1
-                record!(dynamics_R_current[j], t, n)
-                if n <= 0 && I[j] <= 0
-                    deleteat!(I, j)
-                    deleteat!(R, j)
-                    deleteat!(dynamics_I_current, j)
-                    deleteat!(dynamics_R_current, j)
-                    deleteat!(v, j)
-                end
+            n = R[j] -= 1
+            record!(dynamics_R_current[j], t, n)
+            if n <= 0 && I[j] <= 0
+                deleteat!(I, j)
+                deleteat!(R, j)
+                deleteat!(dynamics_I_current, j)
+                deleteat!(dynamics_R_current, j)
+                deleteat!(v, j)
             end
         elseif r_idx == 8 # recovery
             n = I[idx] -=1
