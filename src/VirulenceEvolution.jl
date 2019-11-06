@@ -1,6 +1,6 @@
 module VirulenceEvolution
 
-export gillespie
+export gillespie_single, gillespie_meta
 
 include("sampling.jl")
 

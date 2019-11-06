@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-function gillespie(mutfunc, # virulence mutation function
+function gillespie_meta(mutfunc, # virulence mutation function
                    T::Real; # max time
                    # variable parameters
                    S::AbstractVector{IntType}, # susceptible host population sizes
