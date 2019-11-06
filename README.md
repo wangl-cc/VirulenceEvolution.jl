@@ -1,3 +1,3 @@
 # VirulenceEvolution
 
-Core code of my undergraduate project. A stochastic simulation of virulence evolution uses gillespie algorithm.
+Core code of my undergraduate project, a gillespie algorithm implement of virulence evolution stochastic simulation.
