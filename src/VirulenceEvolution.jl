@@ -6,6 +6,8 @@ include("sampling.jl")
 
 include("utility.jl")
 
-include("gillespie.jl")
+include("singlepopulation.jl")
+
+include("metapopulation.jl")
 
 end # module

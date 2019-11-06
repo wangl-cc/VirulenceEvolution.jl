@@ -5,7 +5,7 @@
 
 using Random
 
-function sample(rng::AbstractRNG, wv::AbstractVector{R})where R <: Real
+function sample(rng::AbstractRNG, wv::AbstractVector)
     t = rand(rng) * sum(wv)
     n = length(wv)
     i = 1
@@ -14,14 +14,23 @@ function sample(rng::AbstractRNG, wv::AbstractVector{R})where R <: Real
         i += 1
         @inbounds cw += wv[i]
     end
-    return i
+    i
 end
 
-function sample(rng::AbstractRNG, wa::AbstractArray{R})where R <: Real
-    h = size(wa, 1)
-    i = sample(rng, vec(wa))
-    d = fld(i-1, h)
-    i-(d*h), d+1
+function sample(rng::AbstractRNG, wa::AbstractArray)
+    idx = sample(rng, vec(wa))
+    linear2cart(idx, collect(size(wa)))
 end
 
-sample(wv) = sample(Random.GLOBAL_RNG, wv)
+sample(wa) = sample(Random.GLOBAL_RNG, wa)
+
+function linear2cart(idx::Integer, sizes::AbstractVector{<:Integer})
+    a = accumulate(*, sizes[1:end-1])
+    d = similar(a)
+    m = similar(a)
+    d[end], m[end] = fldmod1(idx, a[end])
+    @inbounds for i = length(a) - 1:-1:1
+        (d[i], m[i]) = fldmod1(m[i+1], a[i])
+    end
+    m[1], d...
+end
