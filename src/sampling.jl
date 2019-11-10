@@ -19,18 +19,9 @@ end
 
 function sample(rng::AbstractRNG, wa::AbstractArray)
     idx = sample(rng, vec(wa))
-    linear2cart(idx, collect(size(wa)))
+    ind2sub(axes(wa), idx)
 end
 
 sample(wa) = sample(Random.GLOBAL_RNG, wa)
 
-function linear2cart(idx::Integer, sizes::AbstractVector{<:Integer})
-    a = accumulate(*, sizes[1:end-1])
-    d = similar(a)
-    m = similar(a)
-    d[end], m[end] = fldmod1(idx, a[end])
-    @inbounds for i = length(a) - 1:-1:1
-        (d[i], m[i]) = fldmod1(m[i+1], a[i])
-    end
-    m[1], d...
-end
+const ind2sub = Base._ind2sub
