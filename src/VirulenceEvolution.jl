@@ -4,7 +4,7 @@ export gillespie_single, gillespie_meta
 
 include("sampling.jl")
 
-include("utility.jl")
+include("utilities.jl")
 
 include("singlepopulation.jl")
 
