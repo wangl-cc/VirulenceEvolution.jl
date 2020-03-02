@@ -1,5 +1,3 @@
-using LinearAlgebra
-
 function gillespie_meta(mutfunc, # virulence mutation function
                    T::Real; # max time
                    # variable parameters
@@ -14,7 +12,7 @@ function gillespie_meta(mutfunc, # virulence mutation function
                    r::RealType, # recovery rate
                    μ::RealType, # immunity loss rate
                    mt::RealType, # matation rate
-                   mg::RealType, # immigration rate
+                   mg::RealType, # migration rate
                    maxepoch::Integer = 10_000_000) where {IntType <: Integer,RealType <: Real}
     length(S) == size(I, 2) == size(R, 2) || error("S, I, R must have the same metapopulation size!")
     length(v) == size(I, 1) == size(R, 1) || error("S, I, R must have the same number of viruses species!")
@@ -24,9 +22,14 @@ function gillespie_meta(mutfunc, # virulence mutation function
 
     @apply copy S I R v
 
+    sum_I = sum(I, dims = 1)
+    sum_R = sum(R, dims = 1)
+    p_I = I ./ sum_I
+    E_v = sum(p_I .* v, dims = 1)
     dynamics_S = Dynamics.(t, S)
-    dynamics_I = Dynamics.(t, sum(I, dims=1))
-    dynamics_R = Dynamics.(t, sum(R, dims=1))
+    dynamics_I = Dynamics.(t, sum_I)
+    dynamics_R = Dynamics.(t, sum_R)
+    dynamics_v = Dynamics.(t, E_v)
 
     maxepoch = UInt(maxepoch)
     while t <= T && epoch <= maxepoch && length(I) > 0
@@ -34,8 +37,7 @@ function gillespie_meta(mutfunc, # virulence mutation function
 
         # calculate reactions
 
-        population_num = length(S)
-        viruses_num = length(v)
+        viruses_num, population_num = size(I)
 
         reproduction_S = b * S
         reproduction_I = b * I
@@ -45,9 +47,18 @@ function gillespie_meta(mutfunc, # virulence mutation function
         death_I = d * I
         death_R = d * R
 
-        immigration_S = mg * S
-        immigration_I = mg * I
-        immigration_R = mg * R
+        total_num = transpose(S) + sum(I, dims = 1) + sum(R, dims = 1)
+        migration_S = Array{RealType}(undef, population_num, population_num)
+        migration_I = Array{RealType}(undef, viruses_num, population_num, population_num)
+        migration_R = Array{RealType}(undef, viruses_num, population_num, population_num)
+        for i in 1:population_num
+            migration_S[:, i] = total_num[i] * mg * S
+            migration_I[:, :, i] = total_num[i] * mg * I
+            migration_R[:, :, i] = total_num[i] * mg * R
+            migration_S[i, i] = 0
+            migration_I[:, i, i] = zeros(RealType, viruses_num)
+            migration_R[:, i, i] = zeros(RealType, viruses_num)
+        end
 
         infect_S = Array{RealType}(undef, viruses_num, population_num)
         infect_R = Array{RealType}(undef, viruses_num, viruses_num, population_num)
@@ -67,7 +78,7 @@ function gillespie_meta(mutfunc, # virulence mutation function
 
         τ, r_idx, idx = choosereaction(reproduction_S, reproduction_I, reproduction_R,
                                        death_S, death_I, death_R,
-                                       immigration_S, immigration_I, immigration_R,
+                                       migration_S, migration_I, migration_R,
                                        infect_S, infect_R, recovery, immuneloss,
                                        kill, pathogenmutation)
 
@@ -97,15 +108,18 @@ function gillespie_meta(mutfunc, # virulence mutation function
                 R = R[1:end .!= i, :]
                 deleteat!(v, i)
             end
-        elseif r_idx == 7 # S immigration
-            S[idx] -= 1
-            S[rand(1:population_num)] += 1
-        elseif r_idx == 8 # I immigration
-            I[idx] -= 1
-            I[idx[1], rand(1:population_num)] += 1
-        elseif r_idx == 9 # R immigration
-            R[idx] -= 1
-            R[idx[1], rand(1:population_num)] += 1
+        elseif r_idx == 7 # S migration
+            i, j = idx
+            S[i] -= 1
+            S[j] += 1
+        elseif r_idx == 8 # I migration
+            i, j, k = idx
+            I[i, j] -= 1
+            I[i, k] += 1
+        elseif r_idx == 9 # R migration
+            i, j, k = idx
+            R[i, j] -= 1
+            R[i, k] += 1
         elseif r_idx == 10 # I_i infect S
             S[idx[2]] -= 1
             I[idx] += 1
@@ -154,10 +168,15 @@ function gillespie_meta(mutfunc, # virulence mutation function
                 deleteat!(v, i)
             end
         end
+        sum_I = sum(I, dims = 1)
+        sum_R = sum(R, dims = 1)
+        p_I = I ./ sum_I
+        E_v = sum(p_I .* v, dims = 1)
         record!.(dynamics_S, t, S)
-        record!.(dynamics_I, t, sum(I, dims=1))
-        record!.(dynamics_R, t, sum(R, dims=1))
+        record!.(dynamics_I, t, sum_I)
+        record!.(dynamics_R, t, sum_R)
+        record!.(dynamics_v, t, E_v)
     end
     println("Simulation ends at epoch ", Int(epoch), "!")
-    dynamics_S, dynamics_I, dynamics_R
+    dynamics_S, dynamics_I, dynamics_R, dynamics_v
 end

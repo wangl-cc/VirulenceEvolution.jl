@@ -9,10 +9,10 @@ function gillespie_single(mutfunc, # virulence mutation function
                    β::Real, # infect coefficient
                    b::Real, # birth rate
                    d::Real, # death rate
-                   r::Real, #recovery rate
+                   r::Real, # recovery rate
                    μ::Real, # immunity loss rate
                    m::Real, # matation rate
-                   maxepoch::Integer=10_000_000)
+                   maxepoch::Integer = 10_000_000)
     length(R) == length(I) == length(v) || error("R, I and v must have same length!")
     t = 0.0 # initial time
     epoch = 0x0000000000000000 # init epoch
@@ -21,9 +21,14 @@ function gillespie_single(mutfunc, # virulence mutation function
 
     @apply copy I R v
 
+    sum_I = sum(I)
+    sum_R = sum(R)
+    p_I = I ./ sum_I
+    E_v = transpose(p_I) * v
     dynamics_S = Dynamics(t, S)
-    dynamics_I = Dynamics(t, sum(I))
-    dynamics_R = Dynamics(t, sum(R))
+    dynamics_I = Dynamics(t, sum_I)
+    dynamics_R = Dynamics(t, sum_R)
+    dynamics_v = Dynamics(t, E_v)
 
     maxepoch = UInt(maxepoch)
     while t <= T && epoch <= maxepoch && length(I) >= 0
@@ -69,7 +74,7 @@ function gillespie_single(mutfunc, # virulence mutation function
         elseif r_idx == 2 || r_idx == 3 # I and R reproduction
             S += 1
         elseif r_idx == 4 # I death
-            n = I[idx] -=1
+            n = I[idx] -= 1
             if n <= 0 && R[idx] <= 0
                 deleteat!(I, idx)
                 deleteat!(R, idx)
@@ -95,7 +100,7 @@ function gillespie_single(mutfunc, # virulence mutation function
                 deleteat!(v, j)
             end
         elseif r_idx == 8 # recovery
-            n = I[idx] -=1
+            n = I[idx] -= 1
             n = R[idx] += 1
         elseif r_idx == 9 # immunity loss
             S += 1
@@ -127,10 +132,15 @@ function gillespie_single(mutfunc, # virulence mutation function
                 deleteat!(v, idx)
             end
         end
+        sum_I = sum(I)
+        sum_R = sum(R)
+        p_I = I ./ sum_I
+        E_v = transpose(p_I) * v
         record!(dynamics_S, t, S)
-        record!(dynamics_I, t, sum(I))
-        record!(dynamics_R, t, sum(R))
+        record!(dynamics_I, t, sum_I)
+        record!(dynamics_R, t, sum_R)
+        record!(dynamics_v, t, E_v)
     end
     println("Simulation ends at epoch ", Int(epoch), "!")
-    return dynamics_S, dynamics_I, dynamics_R
+    return dynamics_S, dynamics_I, dynamics_R, dynamics_v
 end
